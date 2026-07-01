@@ -1,0 +1,55 @@
+services:
+
+  scheduler:
+    restart: unless-stopped
+    image: equinaut-scheduler:local
+    build:
+      context: ${SRC_PATH}
+    environment:
+      - TZ=Asia/Tokyo
+      - LANG=C.UTF-8
+      - DATABASE_URL=postgres://${POSTGRES_USER:-equinaut}:${POSTGRES_PASSWORD:-equinaut}@postgres:5432/${POSTGRES_DB:-equinaut}
+      - BITBANK_API_KEY=${BITBANK_API_KEY:-}
+      - BITBANK_API_SECRET=${BITBANK_API_SECRET:-}
+      - BITBANK_API_KEY_FILE=${BITBANK_API_KEY_FILE:-}
+      - BITBANK_API_SECRET_FILE=${BITBANK_API_SECRET_FILE:-}
+      - BITBANK_ACCESS_TIME_WINDOW_MS=${BITBANK_ACCESS_TIME_WINDOW_MS:-5000}
+    init: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./config:/app/config:ro
+    networks:
+      - default
+
+  postgres:
+    restart: unless-stopped
+    container_name: equinaut-pg
+    image: postgres:18
+    volumes:
+      - pg-data:/var/lib/postgresql
+    environment:
+      - TZ=Asia/Tokyo
+      - LANG=C.UTF-8
+      - POSTGRES_USER=${POSTGRES_USER:-equinaut}
+      - POSTGRES_DB=${POSTGRES_DB:-equinaut}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-equinaut}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER:-equinaut}" -d "$${POSTGRES_DB:-equinaut}"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - default
+      - grafana
+
+volumes:
+  pg-data:
+  app_node_modules:
+
+networks:
+  grafana:
+    external: true

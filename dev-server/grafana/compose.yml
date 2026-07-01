@@ -1,0 +1,29 @@
+services:
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Tokyo
+      - LANG=C.UTF-8
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - caddy-dev
+      - grafana
+
+    labels:
+      caddy: grafana.dev.equuss.org
+      caddy.reverse_proxy: "{{upstreams 3000}}"
+
+volumes:
+  grafana_data:
+
+networks:
+  caddy-dev:
+    name: caddy-dev
+    external: true
+
+  grafana:
+    name: grafana
+    external: true
