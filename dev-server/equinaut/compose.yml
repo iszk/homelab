@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     image: equinaut-scheduler:local
     build:
-      context: ${SRC_PATH}
+      context: ${SRC_DIR}
     environment:
       - TZ=Asia/Tokyo
       - LANG=C.UTF-8
