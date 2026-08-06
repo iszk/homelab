@@ -1,0 +1,10 @@
+
+
+set dotenv-load
+
+default:
+    @just --choose
+
+psql:
+    # @docker compose exec -it test-postgres psql -U ${POSTGRES_USER:-testdb} -d ${POSTGRES_DB:-testdb}
+    docker compose exec -it test-postgres sh -c 'psql -U $POSTGRES_USER'

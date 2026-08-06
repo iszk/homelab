@@ -1,0 +1,123 @@
+#!/usr/bin/bash
+
+# kandev 用の汎用 sandbox ラッパー
+
+set -euo pipefail
+
+if [ "${1:-}" != "--" ]; then
+  echo "Usage: $(basename "$0") -- command [args...]" >&2
+  exit 2
+fi
+shift
+
+if [ "$#" -eq 0 ]; then
+  echo "$(basename "$0"): no command specified after --" >&2
+  exit 2
+fi
+
+ACP_LOGS_DIR="$HOME/logs/acp"
+SANDBOX_LOGS_DIR="$HOME/logs/sandbox"
+
+mkdir -p "$SANDBOX_LOGS_DIR"
+mkdir -p "$ACP_LOGS_DIR"
+
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] sandbox $*" >> "$SANDBOX_LOGS_DIR/sandbox.log"
+
+REAL_NPX="/usr/local/bin/npx"
+
+cmd=("$@")
+extra_bwrap_args=()
+
+# PATH 上の旧 npx ラッパーへ戻って sandbox が二重起動するのを防ぐ
+if [ "${cmd[0]}" = "npx" ]; then
+  cmd[0]="$REAL_NPX"
+fi
+
+# codex-acp の場合は、sandbox_mode を "danger-full-access" にして、approval_policy を "never" にする
+if [ "${cmd[0]}" = "$REAL_NPX" ] &&
+   [ "${cmd[1]:-}" = "-y" ] &&
+   [ "${cmd[2]:-}" = "@agentclientprotocol/codex-acp" ]; then
+  extra_bwrap_args+=(
+    --bind "$HOME/.codex" "$HOME/.codex"
+    --bind "$HOME/.agents" "$HOME/.agents"
+    --setenv APP_SERVER_LOGS "$ACP_LOGS_DIR"
+    --setenv CODEX_CONFIG '{"sandbox_mode":"danger-full-access","approval_policy":"never"}'
+  )
+fi
+
+# pwd の最後を見て、もし ~/projects 以下に同名ディレクトリがある場合、それを obsidian 以下に bind する
+project_name=$(basename "$PWD")
+obsidian_dir="$HOME/projects/$project_name"
+if [ -d "$obsidian_dir" ]; then
+  extra_bwrap_args+=(--bind "$obsidian_dir" "$PWD/obsidian")
+fi
+
+# If current directory is a git worktree, also bind-mount the main worktree
+# git_worktree_args=()
+if git rev-parse --git-dir &>/dev/null; then
+  git_dir=$(git rev-parse --absolute-git-dir 2>/dev/null)
+  common_dir=$(git rev-parse --git-common-dir 2>/dev/null)
+  # Make common_dir absolute if relative
+  if [[ "$common_dir" != /* ]]; then
+    common_dir="$PWD/$common_dir"
+  fi
+  if [[ "$git_dir" != "$common_dir" ]]; then
+    # We're in a worktree; find the main worktree root
+    main_worktree=$(git worktree list --porcelain 2>/dev/null | awk 'NR==1{sub(/^worktree /, ""); print}')
+    if [[ -n "$main_worktree" && "$main_worktree" != "$PWD" ]]; then
+      # git_worktree_args+=(--bind "$main_worktree" "$main_worktree")
+      extra_bwrap_args+=(--bind "$main_worktree/.git" "$main_worktree/.git")
+    fi
+  fi
+fi
+
+# PAT があったら、環境変数にセットする
+if [ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ]; then
+  extra_bwrap_args+=(
+    --setenv GITHUB_PERSONAL_ACCESS_TOKEN "$GITHUB_PERSONAL_ACCESS_TOKEN"
+    --setenv GH_TOKEN "$GITHUB_PERSONAL_ACCESS_TOKEN"
+  )
+fi
+
+# git committer のユーザー名とメールアドレスを設定する
+if [ -n "${GIT_COMMITTER_NAME:-}" ]; then
+  extra_bwrap_args+=(
+    --setenv GIT_COMMITTER_NAME "$GIT_COMMITTER_NAME"
+    --setenv GIT_COMMITTER_EMAIL "$GIT_COMMITTER_EMAIL"
+    )
+fi
+
+# git author のユーザー名とメールアドレスを設定する
+if [ -n "${GIT_AUTHOR_NAME:-}" ]; then
+  extra_bwrap_args+=(
+    --setenv GIT_AUTHOR_NAME "$GIT_AUTHOR_NAME"
+    --setenv GIT_AUTHOR_EMAIL "$GIT_AUTHOR_EMAIL"
+  )
+fi
+
+mkdir -p ~/.local/share/mise
+
+echo "path:$PWD | ${cmd[*]} ${extra_bwrap_args[*]}" >> "$SANDBOX_LOGS_DIR/run.log"
+
+exec bwrap \
+  --ro-bind /usr /usr \
+  --ro-bind /bin /bin \
+  --ro-bind /lib /lib \
+  --ro-bind /lib64 /lib64 \
+  --ro-bind /etc/resolv.conf /etc/resolv.conf \
+  --ro-bind /etc/passwd /etc/passwd \
+  --ro-bind /etc/ssl/certs /etc/ssl/certs \
+  --ro-bind ~/.local/bin ~/.local/bin \
+  --bind ~/.local/share/mise ~/.local/share/mise \
+  --bind ~/.npm ~/.npm \
+  --bind ~/.npm-global ~/.npm-global \
+  --bind ~/.gitconfig ~/.gitconfig \
+  --dev /dev \
+  --proc /proc \
+  --tmpfs /tmp \
+  --bind "$PWD" "$PWD" \
+  --chdir "$PWD" \
+  --share-net \
+  "${extra_bwrap_args[@]}" \
+  -- "${cmd[@]}" \
+  2> >(tee -a "$SANDBOX_LOGS_DIR/debug.log" >&2)

@@ -1,0 +1,90 @@
+#!/usr/bin/bash
+
+eval "$(mise activate bash)"
+
+subcommand="$1"
+if [[ $# -gt 0 ]]; then
+  shift
+fi
+
+cmd=("bash")
+extra_bwrap_args=()
+
+case "$subcommand" in
+  "")
+    cmd=("bash")
+    ;;
+  "gemini")
+    extra_bwrap_args+=(
+      --bind ~/.gemini ~/.gemini
+    )
+    mise use --global npm:@google/gemini-cli@latest
+    sleep 2 # Give mise a moment to set up the environment
+    cmd=("gemini" "$@")
+    ;;
+  "copilot")
+    extra_bwrap_args+=(
+      --bind ~/.copilot ~/.copilot
+      --bind ~/.agents ~/.agents
+    )
+    # cmd=("copilot-latest" "$@")
+    mise use --global npm:@github/copilot@latest
+    sleep 2 # Give mise a moment to set up the environment
+    cmd=("copilot" "$@")
+    ;;
+  "codex")
+    extra_bwrap_args+=(
+      --bind ~/.codex ~/.codex
+      --bind ~/.agents ~/.agents
+    )
+    mise use --global npm:@openai/codex@latest
+    sleep 2 # Give mise a moment to set up the environment
+    cmd=("codex" "$@")
+    ;;
+  "bash")
+    cmd=("bash" "$@")
+    ;;
+  *)
+    # Unknown subcommand is treated as a direct command to run inside the sandbox.
+    cmd=("$subcommand" "$@")
+    ;;
+esac
+
+# If current directory is a git worktree, also bind-mount the main worktree
+# git_worktree_args=()
+if git rev-parse --git-dir &>/dev/null; then
+  git_dir=$(git rev-parse --absolute-git-dir 2>/dev/null)
+  common_dir=$(git rev-parse --git-common-dir 2>/dev/null)
+  # Make common_dir absolute if relative
+  if [[ "$common_dir" != /* ]]; then
+    common_dir="$PWD/$common_dir"
+  fi
+  if [[ "$git_dir" != "$common_dir" ]]; then
+    # We're in a worktree; find the main worktree root
+    main_worktree=$(git worktree list --porcelain 2>/dev/null | awk 'NR==1{sub(/^worktree /, ""); print}')
+    if [[ -n "$main_worktree" && "$main_worktree" != "$PWD" ]]; then
+      # git_worktree_args+=(--bind "$main_worktree" "$main_worktree")
+      extra_bwrap_args+=(--bind "$main_worktree/.git" "$main_worktree/.git")
+    fi
+  fi
+fi
+
+exec bwrap \
+  --ro-bind /usr /usr \
+  --ro-bind /bin /bin \
+  --ro-bind /lib /lib \
+  --ro-bind /lib64 /lib64 \
+  --ro-bind /etc/resolv.conf /etc/resolv.conf \
+  --ro-bind /etc/passwd /etc/passwd \
+  --ro-bind /etc/ssl/certs /etc/ssl/certs \
+  --ro-bind ~/.local/bin ~/.local/bin \
+  --bind ~/.local/share/mise ~/.local/share/mise \
+  --bind ~/.npm ~/.npm \
+  --bind "$PWD" "$PWD" \
+  --dev /dev \
+  --proc /proc \
+  --tmpfs /tmp \
+  --chdir "$PWD" \
+  --share-net \
+  "${extra_bwrap_args[@]}" \
+  -- "${cmd[@]}"

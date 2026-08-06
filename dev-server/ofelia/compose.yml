@@ -1,0 +1,16 @@
+services:
+
+  ofelia:
+    image: mcuadros/ofelia:latest
+    command: daemon --docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      TZ: Asia/Tokyo
+      LANG: C.UTF-8
+    labels:
+      # ofelia そのものの生存確認
+      # なにもjobがないと ofelia が起動後即終了してしまうため
+      ofelia.enabled: "true"
+      ofelia.job-local.ofelia-alive-echo.schedule: "0 0 12 * * *"
+      ofelia.job-local.ofelia-alive-echo.command: "echo 'ofelia: alive'"

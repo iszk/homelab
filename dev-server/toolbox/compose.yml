@@ -1,0 +1,120 @@
+services:
+  kandev:
+    build:
+      context: ./kandev
+      dockerfile: Dockerfile
+    container_name: kandev
+    hostname: kandev
+    restart: always
+    # ports:
+    #   - "38429:38429" # This maps the container port "38429" to the host port "38429"
+    volumes:
+      - kandev-data:/home/node/.kandev
+      - ./kandev/.gitconfig:/home/node/.gitconfig
+      - ./kandev/bin:/home/node/bin
+      - ./agent-skills:/home/node/.agents/skills
+      - /opt/equuss/src:/home/node/src
+      - /opt/equuss/pkm/personal/projects:/home/node/projects
+      - /opt/equuss/src:/src
+      - /opt/equuss/pkm:/pkm
+      # - ${HOST_HOME}/.local/share/mise/installs:/home/node/.local/share/mise/installs
+      - ${HOST_HOME}/.codex/auth.json:/home/node/.codex/auth.json
+      - ${HOST_HOME}/.ssh:/home/node/.ssh
+      - ${HOST_HOME}/.config/gh:/home/node/.config/gh
+      - kandev-dot-codex:/home/node/.codex
+      - kandev-dot-config:/home/node/.config
+      - shared-uv-cache:/home/node/.cache/uv
+      - shared-npm-cache:/home/node/.npm
+      # - shared-mise-cache:/home/node/.local/share/mise
+      # - /var/run/docker.sock:/var/run/docker.sock
+
+    environment:
+      MISE_TRUSTED_CONFIG_PATHS: "~/src:~/.kandev/tasks"
+      GITHUB_PERSONAL_ACCESS_TOKEN: ${GITHUB_PERSONAL_ACCESS_TOKEN}
+      GIT_COMMITTER_NAME: "ISZK Yoh"
+      GIT_COMMITTER_EMAIL: y@equuss.org
+      GIT_AUTHOR_NAME: "coding agent"
+      GIT_AUTHOR_EMAIL: agent@equuss.org
+    init: true
+    security_opt:
+      - seccomp=unconfined
+      - apparmor=unconfined
+    networks:
+      - caddy-dev
+      - test-db
+    labels:
+      caddy: kandev.dev.equuss.org
+      caddy.reverse_proxy: "{{upstreams 38429}}"
+
+
+  code:
+    container_name: programming-vscode
+    hostname: code
+    restart: unless-stopped
+    build:
+      context: ./code
+      dockerfile: Dockerfile
+      args:
+        - HOST_UID=${HOST_UID:-1000}
+        - HOST_GID=${HOST_GID:-1000}
+        - HOST_DOCKER_GID=${HOST_DOCKER_GID:-989}
+        - SRC_DIR=${SRC_DIR}
+    working_dir: ${SRC_DIR}
+    volumes:
+      - ${SRC_DIR}:${SRC_DIR}
+      - ~/.ssh:/home/vscode/.ssh
+      - ~/.config/gh:/home/vscode/.config/gh
+      - ~/.local/share/mise/installs:/home/vscode/.local/share/mise/installs
+      - dot-vscode-server:/home/vscode/.vscode-server
+      - dot-config:/home/vscode/.config
+      - /var/run/docker.sock:/var/run/docker.sock
+      - shared-uv-cache:/home/vscode/.cache/uv
+      - shared-npm-cache:/home/vscode/.npm
+      - shared-mise-cache:/home/vscode/.local/share/mise
+    environment:
+      - GIT_COMMITTER_NAME=iszk
+      - GIT_COMMITTER_EMAIL=y@nemui.jp
+      - GIT_AUTHOR_NAME=iszk
+
+      - GIT_AUTHOR_EMAIL=y@nemui.jp
+      - MISE_TRUSTED_CONFIG_PATHS=${SRC_DIR}:/var/tmp/.vibe-kanban-workspaces
+    init: true
+    security_opt:
+      - seccomp=unconfined
+      - apparmor=unconfined
+    networks:
+      - caddy-dev
+      - test-db
+
+    labels:
+      caddy: code.dev.equuss.org
+      caddy.reverse_proxy: "{{upstreams 8000}}"
+
+
+volumes:
+  kandev-data:
+  kandev-dot-codex:
+  kandev-dot-config:
+  shared-uv-cache:
+    external: true
+  shared-npm-cache:
+    external: true
+  shared-mise-cache:
+    external: true
+
+  dot-config:
+  dot-vscode-server:
+
+
+networks:
+  test-db:
+    name: test-db
+    external: true
+
+  homelab-dev:
+    name: homelab-dev
+    external: true
+
+  caddy-dev:
+    name: caddy-dev
+    external: true

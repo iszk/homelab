@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git Workflow"
+  short_description: "個人用の Git / PR 作業手順"
+  default_prompt: "Use $git-workflow to commit, push, and create a pull request."
