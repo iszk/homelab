@@ -12,6 +12,7 @@ services:
       - kandev-data:/home/node/.kandev
       - ./kandev/.gitconfig:/home/node/.gitconfig
       - ./kandev/bin:/home/node/bin
+      - ./kandev/AGENTS.md:/home/node/.codex/AGENTS.md
       - ./agent-skills:/home/node/.agents/skills
       - /opt/equuss/src:/home/node/src
       - /opt/equuss/pkm/personal/projects:/home/node/projects
@@ -22,7 +23,9 @@ services:
       - ${HOST_HOME}/.ssh:/home/node/.ssh
       - ${HOST_HOME}/.config/gh:/home/node/.config/gh
       - kandev-dot-codex:/home/node/.codex
+      - kandev-dot-cursor:/home/node/.cursor
       - kandev-dot-config:/home/node/.config
+      - kandev-dot-local:/home/node/.local
       - shared-uv-cache:/home/node/.cache/uv
       - shared-npm-cache:/home/node/.npm
       # - shared-mise-cache:/home/node/.local/share/mise
@@ -35,6 +38,7 @@ services:
       GIT_COMMITTER_EMAIL: y@equuss.org
       GIT_AUTHOR_NAME: "coding agent"
       GIT_AUTHOR_EMAIL: agent@equuss.org
+      KANDEV_TRUSTED_PROXIES: "172.28.0.0/16"
     init: true
     security_opt:
       - seccomp=unconfined
@@ -46,9 +50,8 @@ services:
       caddy: kandev.dev.equuss.org
       caddy.reverse_proxy: "{{upstreams 38429}}"
 
-
   code:
-    container_name: programming-vscode
+    container_name: vscode
     hostname: code
     restart: unless-stopped
     build:
@@ -90,11 +93,50 @@ services:
       caddy: code.dev.equuss.org
       caddy.reverse_proxy: "{{upstreams 8000}}"
 
+  basic-memory:
+    image: ghcr.io/basicmachines-co/basic-memory:latest
+    restart: unless-stopped
+    container_name: basic-memory
+
+    volumes:
+      - basic-memory-config:/home/appuser/.basic-memory
+      - /opt/equuss/pkm/personal/memory:/app/data:rw
+
+      # Obsidian vault の一部だけ見せる
+      # - /opt/equuss/pkm/personal/memory:/app/data:rw
+
+      # Basic Memory の設定・index
+      # - basic-memory-config:/home/appuser/.basic-memory:rw
+
+    environment:
+      BASIC_MEMORY_DEFAULT_PROJECT: main
+      BASIC_MEMORY_INDEX_CHANGES: "true"
+      BASIC_MEMORY_LOG_LEVEL: INFO
+      BASIC_MEMORY_INDEX_DELAY: "1000"
+
+    command:
+      - basic-memory
+      - mcp
+      - --transport
+      - streamable-http
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    networks:
+      - caddy-dev
+
+    labels:
+      caddy: basic-memory.dev.equuss.org
+      caddy.reverse_proxy: "{{upstreams 8000}}"
+
 
 volumes:
   kandev-data:
   kandev-dot-codex:
+  kandev-dot-cursor:
   kandev-dot-config:
+  kandev-dot-local:
   shared-uv-cache:
     external: true
   shared-npm-cache:
@@ -104,7 +146,7 @@ volumes:
 
   dot-config:
   dot-vscode-server:
-
+  basic-memory-config:
 
 networks:
   test-db:

@@ -34,14 +34,44 @@ if [ "${cmd[0]}" = "npx" ]; then
 fi
 
 # codex-acp の場合は、sandbox_mode を "danger-full-access" にして、approval_policy を "never" にする
-if [ "${cmd[0]}" = "$REAL_NPX" ] &&
-   [ "${cmd[1]:-}" = "-y" ] &&
-   [ "${cmd[2]:-}" = "@agentclientprotocol/codex-acp" ]; then
+# @agentclientprotocol/codex-acp が含まれている、という条件で行う
+if [[ " $* " == *" @agentclientprotocol/codex-acp@"* ]]; then
+  # Use the requested npm package rather than an unrelated codex-acp from PATH.
+  cmd=("$REAL_NPX" "${@:2}")
+  for ((i = 1; i < ${#cmd[@]}; i++)); do
+    case "${cmd[i]}" in
+      --prefix)
+        if ((i + 1 >= ${#cmd[@]})); then
+          echo "$(basename "$0"): --prefix requires a directory" >&2
+          exit 2
+        fi
+        i=$((i + 1))
+        prefix_dir="${cmd[i]}"
+        ;;
+      --prefix=*) prefix_dir="${cmd[i]#--prefix=}" ;;
+      *) continue ;;
+    esac
+    prefix_dir=$(realpath -m -- "$prefix_dir")
+    extra_bwrap_args+=(--bind "$prefix_dir" "$prefix_dir")
+  done
   extra_bwrap_args+=(
     --bind "$HOME/.codex" "$HOME/.codex"
     --bind "$HOME/.agents" "$HOME/.agents"
     --setenv APP_SERVER_LOGS "$ACP_LOGS_DIR"
     --setenv CODEX_CONFIG '{"sandbox_mode":"danger-full-access","approval_policy":"never"}'
+  )
+elif [[ " $* " == *" opencode-ai "* ]]; then
+  cmd=("$REAL_NPX" "${@:2}")
+  extra_bwrap_args+=(
+    --bind "$HOME/.local/share/opencode" "$HOME/.local/share/opencode"
+    --bind "$HOME/.agents" "$HOME/.agents"
+  )
+elif [[ " $* " == *" cursor-agent "* ]]; then
+  cmd=("${@:1}")
+  extra_bwrap_args+=(
+    --bind "$HOME/.cursor" "$HOME/.cursor"
+    --bind "$HOME/.config/cursor" "$HOME/.config/cursor"
+    --bind "$HOME/.local/share/cursor-agent" "$HOME/.local/share/cursor-agent"
   )
 fi
 
@@ -119,5 +149,6 @@ exec bwrap \
   --chdir "$PWD" \
   --share-net \
   "${extra_bwrap_args[@]}" \
+  --setenv PATH "$HOME/.local/bin:$PATH" \
   -- "${cmd[@]}" \
   2> >(tee -a "$SANDBOX_LOGS_DIR/debug.log" >&2)

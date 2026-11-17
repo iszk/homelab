@@ -40,23 +40,25 @@ RUN curl https://mise.run | MISE_INSTALL_PATH="/usr/local/bin/mise" sh
 USER ${USER_NAME}
 WORKDIR /home/${USER_NAME}
 ENV NPM_CONFIG_PREFIX=/home/node/.npm-global
-ENV PATH=/home/node/bin:$PATH:/home/node/.npm-global/bin
+ENV PATH=/home/node/bin:$PATH:/home/node/.npm-global/bin:/home/node/.local/bin
 
 RUN echo 'eval "$(mise activate bash)"' >> ~/.bashrc
-RUN echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+# RUN echo 'export PATH="$HOME/bin:$HOME/.local/bin:$PATH"' >> ~/.bashrc
 
 RUN mkdir -p .local/bin
 RUN mkdir -p .config
 RUN mkdir -p .cache
-RUN mkdir -p .local/share/vibe-kanban
 RUN mkdir -p .codex
 RUN mkdir -p .copilot
 RUN mkdir -p .gemini
+RUN mkdir -p .cursor
 RUN mkdir -p .agents/skills
 RUN mkdir -p .ssh
 # RUN mkdir -p .local/share/mise/installs
 
-# RUN npm install -g @zed-industries/codex-acp@latest
 RUN npm install -g @openai/codex@latest
+RUN npm exec --prefer-online --package=@agentclientprotocol/codex-acp@latest -- true
+# RUN npm install -g opencode-ai@latest
+# RUN curl https://cursor.com/install -fsS | bash
 
 CMD ["/usr/local/bin/npx", "--yes", "kandev"]

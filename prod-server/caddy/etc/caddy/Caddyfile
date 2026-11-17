@@ -1,0 +1,70 @@
+{
+	acme_dns cloudflare {env.CF_API_TOKEN}
+}
+
+*.equuss.org {
+    abort
+}
+
+nas.equuss.org {
+	reverse_proxy 10.2.22.254:5000
+}
+
+proxmox.equuss.org {
+	reverse_proxy 10.2.22.252:8006 {
+		# ※ proxmox は 8006 番で自己証明書の https で待っている
+
+		# ホストヘッダーを正しく渡す（ProxmoxのCSRFチェック等に影響する場合があるため）
+		header_up Host {upstream_hostport}
+
+		transport http {
+			# Proxmoxのオレオレ証明書を許可
+			tls_insecure_skip_verify
+		}
+	}
+}
+
+pkm-dav.equuss.org {
+	reverse_proxy pkm-webdav:6065
+}
+
+pkm.equuss.org {
+	reverse_proxy pkm-webobsidian:8787
+}
+
+
+pdf.equuss.org {
+	reverse_proxy stirling-pdf:8080
+}
+
+immich.equuss.org {
+	reverse_proxy 10.2.23.202:2283
+}
+
+gw.hermes.equuss.org {
+    reverse_proxy hermes:8642
+}
+
+dashboard.hermes.equuss.org {
+    reverse_proxy hermes:9119
+}
+
+changedetection.equuss.org {
+    reverse_proxy changedetection:5000
+}
+
+kuma.equuss.org {
+    reverse_proxy uptime-kuma:3001
+}
+
+adguard.equuss.org {
+	reverse_proxy 10.2.23.201:80
+}
+
+jellyfin.equuss.org {
+	reverse_proxy 10.2.23.104:8096
+}
+
+syncthing.equuss.org {
+	reverse_proxy syncthing:8384
+}

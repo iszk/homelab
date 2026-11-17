@@ -1,0 +1,37 @@
+services:
+  caddy:
+    container_name: caddy-dev
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      - CADDY_DOCKER_CADDYFILE_PATH=/etc/caddy/Caddyfile
+      - CADDY_INGRESS_NETWORKS=caddy-dev
+    volumes:
+      - type: bind
+        source: ./etc/caddy
+        target: /etc/caddy
+      - type: volume
+        source: caddy-data
+        target: /data
+      - type: volume
+        source: caddy-config
+        target: /config
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - caddy-dev
+
+volumes:
+  caddy-data:
+  caddy-config:
+
+networks:
+  caddy-dev:
+    name: caddy-dev
+    external: true

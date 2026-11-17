@@ -2,9 +2,11 @@ services:
 
   ofelia:
     image: mcuadros/ofelia:latest
+    restart: unless-stopped
     command: daemon --docker
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /opt/equuss/logs/ofelia:/logs
     environment:
       TZ: Asia/Tokyo
       LANG: C.UTF-8
@@ -12,5 +14,7 @@ services:
       # ofelia そのものの生存確認
       # なにもjobがないと ofelia が起動後即終了してしまうため
       ofelia.enabled: "true"
+      ofelia.save-folder: "/logs"
+      ofelia.save-only-on-error: "false"
       ofelia.job-local.ofelia-alive-echo.schedule: "0 0 12 * * *"
       ofelia.job-local.ofelia-alive-echo.command: "echo 'ofelia: alive'"

@@ -1,0 +1,24 @@
+services:
+
+  ui-prod:
+    container_name: trade-gateway-ui
+    build:
+      context: ${SRC_DIR}
+      dockerfile: ui/Dockerfile
+    environment:
+      TZ: Asia/Tokyo
+      LANG: C.UTF-8
+      API_URL: ${API_URL}
+      API_SECRET: ${API_SECRET}
+
+    networks:
+      - caddy-dev
+
+    labels:
+      caddy: tg.dev.equuss.org
+      caddy.reverse_proxy: "{{upstreams 5173}}"
+
+networks:
+  caddy-dev:
+    name: caddy-dev
+    external: true

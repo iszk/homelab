@@ -41,7 +41,7 @@ RUN apt-get update && apt-get install \
     -y --no-install-recommends
 
 RUN groupadd -g ${HOST_GID} ${USER_NAME}
-RUN useradd -m -u ${HOST_UID} -g ${HOST_GID} -s /bin/bash ${USER_NAME}
+RUN useradd -m -u ${HOST_UID} -g ${HOST_GID} -s /usr/bin/zsh ${USER_NAME}
 RUN echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${USER_NAME}
 RUN ln -s /usr/bin/fdfind /usr/local/bin/fd
 RUN groupadd -g ${HOST_DOCKER_GID} docker
@@ -62,7 +62,9 @@ RUN curl https://mise.run | MISE_INSTALL_PATH="/usr/local/bin/mise" sh
 
 USER ${USER_NAME}
 
+RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh
 RUN mkdir -p ~/.local/bin
+RUN mkdir -p ~/.local/share/mise/installs
 RUN mkdir -p ~/.config
 RUN mkdir -p ~/.vscode
 RUN mkdir -p ~/.vscode-server
@@ -70,6 +72,8 @@ RUN mise use --global node@24
 RUN mise use --global ghq@latest
 
 RUN echo 'eval "$(mise activate bash)"' >> ~/.bashrc
+
+RUN ln -s /opt/equuss/src/github.com/iszk/workspaces/vscode ~/workspaces
 
 ENV PORT=8000
 EXPOSE ${PORT}

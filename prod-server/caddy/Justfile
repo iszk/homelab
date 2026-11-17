@@ -1,0 +1,16 @@
+# デフォルトタスク: タスク一覧を fzf で選択して実行する
+default:
+    @just --choose
+
+# Caddyfileを再読み込みする
+reload:
+    docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
+
+# 現在のコンフィグを表示する
+show-config:
+    docker compose exec caddy curl localhost:2019/config/
+
+# インストール済みモジュールを一覧表示する
+list-modules:
+    docker compose exec caddy caddy list-modules
+

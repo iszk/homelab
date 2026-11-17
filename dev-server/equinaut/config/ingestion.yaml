@@ -12,4 +12,11 @@ sources:
   - id: bitbank
     enabled: true
     # 省略時は scheduler.defaultIntervalSeconds を使います。
+    intervalSeconds: 1800
+  - id: bitflyer
+    enabled: true
+    # 省略時は scheduler.defaultIntervalSeconds を使います。
+    intervalSeconds: 1800
+  - id: saxo
+    enabled: true
     intervalSeconds: 3600

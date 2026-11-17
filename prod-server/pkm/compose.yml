@@ -1,0 +1,62 @@
+services:
+  webdav:
+    container_name: pkm-webdav
+    image: ghcr.io/hacdias/webdav:v5.15
+    user: "1000:1000"
+    volumes:
+      - ./webdav/config.yml:/config.yml:ro
+      - pkm-data:/data
+    env_file:
+      - ./webdav/.env
+    restart: unless-stopped
+
+    networks:
+      - reverse-proxy
+      - default
+
+  webobsidian:
+    build:
+      context: https://github.com/xnohat/webobsidian.git#v0.1.1
+    container_name: pkm-webobsidian
+    restart: unless-stopped
+    user: "1000:1000"
+
+    environment:
+      HTTP_BIND: 0.0.0.0
+      # これはあくまで初期パスワードで、実際のパスワードは別保管される
+      WEBOBSIDIAN_PASSWORD: hogehoge
+      # File-watch mode: auto (native + polling fallback) | polling. See .env.example.
+      WEBOBSIDIAN_WATCH: auto
+      TRUST_PROXY: true
+      VAULT_PATH: /vault/personal
+      DATA_DIR: /data
+      ALLOWED_ROOTS: /vault
+      NODE_ENV: production
+    init: true
+
+    volumes:
+      # Your vault on the host (VAULT_HOST_PATH in .env) → /vault in the container.
+      # Defaults to the bundled sample vault so `docker compose up` works immediately.
+      - pkm-data:/vault
+      # Persisted settings.json + search index
+      - webobsidian-data:/data
+
+    networks:
+      - reverse-proxy
+      - default
+
+networks:
+  reverse-proxy:
+    name: reverse-proxy
+    external: true
+
+volumes:
+  pkm-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/equuss/pkm
+
+  webobsidian-data:
+

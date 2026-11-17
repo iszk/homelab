@@ -1,0 +1,12 @@
+
+default:
+    @just --choose
+
+psql:
+    @docker compose exec -it postgres sh -lc 'psql -U "${POSTGRES_USER:-equinaut}" -d "${POSTGRES_DB:-equinaut}"'
+
+scheduler-logs:
+    @docker compose logs -f scheduler
+
+deploy:
+    @docker compose up scheduler -d --build --force-recreate
